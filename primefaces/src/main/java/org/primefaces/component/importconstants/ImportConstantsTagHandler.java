@@ -29,7 +29,11 @@ import org.primefaces.util.LangUtils;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 
 import jakarta.faces.FacesException;
@@ -134,7 +138,54 @@ public class ImportConstantsTagHandler extends TagHandler {
         // Go through all the fields, and put static ones in a map.
         Field[] fields = type.getFields();
 
-        for (Field field : fields) {
+        // Sort fields so that fields from more specific classes come first
+        List<Field> fieldList = new ArrayList<>(Arrays.asList(fields));
+
+        fieldList.sort(new Comparator<Field>() {
+            @Override
+            public int compare(Field f1, Field f2) {
+                Class<?> c1 = f1.getDeclaringClass();
+                Class<?> c2 = f2.getDeclaringClass();
+
+                if (!c1.equals(c2)) {
+                    // If c1 is a superclass of c2, then c2 is more specific -> comes first
+                    if (c1.isAssignableFrom(c2)) {
+                        return 1;
+                    }
+                    if (c2.isAssignableFrom(c1)) {
+                        return -1;
+                    }
+                    // Unrelated classes: fall back to class name
+                    return c1.getName().compareTo(c2.getName());
+                }
+
+                // Same declaring class: sort by field name for determinism
+                return f1.getName().compareTo(f2.getName());
+            }
+        });
+
+        for (Field field : fieldList) {
+            // already collected in a class with higher prio
+            if (constants.containsKey(field.getName())) {
+                continue;
+            }
+
+            // Check to see if this is public static final. If not, it's not a constant.
+            int modifiers = field.getModifiers();
+            if (!Modifier.isFinal(modifiers) || !Modifier.isStatic(modifiers) || !Modifier.isPublic(modifiers)) {
+                continue;
+            }
+
+            try {
+                Object value = field.get(null);
+                constants.put(field.getName(), value);
+            }
+            catch (Exception e) {
+                throw new FacesException("Could not get value of " + field.getName() + " in " + type.getName() + ".", e);
+            }
+        }
+
+        for (Field field : fieldList) {
             // already collected in a class with higher prio
             if (constants.containsKey(field.getName())) {
                 continue;

@@ -28,7 +28,6 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ImportConstantsTagHandlerTest {
 
@@ -40,7 +39,7 @@ class ImportConstantsTagHandlerTest {
         assertEquals("h1", constants.get("H1"));
         assertEquals("h3", constants.get("H3"));
         assertEquals("i", constants.get("I"));
-        assertTrue(constants.get("H2").equals("h2override") || constants.get("H2").equals("h2"));
+        assertEquals("h2override", constants.get("H2"));
     }
 
     class MyConstants extends MyConstants2 {
